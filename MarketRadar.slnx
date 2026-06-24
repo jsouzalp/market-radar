@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MarketRadar.Application/MarketRadar.Application.csproj" />
+    <Project Path="src/MarketRadar.Domain/MarketRadar.Domain.csproj" />
+    <Project Path="src/MarketRadar.Infrastructure/MarketRadar.Infrastructure.csproj" />
+    <Project Path="src/MarketRadar.Web/MarketRadar.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MarketRadar.Application.Tests/MarketRadar.Application.Tests.csproj" />
+    <Project Path="tests/MarketRadar.Domain.Tests/MarketRadar.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
