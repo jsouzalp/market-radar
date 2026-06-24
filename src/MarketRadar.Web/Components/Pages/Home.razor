@@ -1,0 +1,195 @@
+@page "/"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject IDashboardAppService DashboardService
+@inject IAlertNotificationService AlertNotificationService
+@inject IOptions<AlertSettings> AlertSettingsOptions
+@inject IOptions<MarketMonitorSettings> MonitorSettingsOptions
+@inject IOptions<MarketDataProviderSettings> ProviderSettingsOptions
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Market Radar – @_symbol/@_timeframe</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-3 px-2 py-2 bg-dark text-light rounded">
+    <span>
+        <strong>Market Radar</strong> | @_symbol | @_timeframe
+        <small class="text-secondary ms-2">Horários exibidos em UTC.</small>
+    </span>
+    <span class="badge @_statusBadgeClass">@_statusLabel</span>
+    <span class="small text-secondary">Última coleta: @(_vm?.LastUpdatedAt?.ToString("HH:mm:ss") ?? "--:--:--")</span>
+</div>
+
+@if (_isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Carregando dados do mercado...</p>
+    </div>
+}
+else if (_vm is not null)
+{
+    @if (_vm.Status == DashboardStatus.Online)
+    {
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-lg-3">
+                <StatusCard Vm="_vm" />
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <TrendCard TrendLine="_vm.TrendLine" />
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <MovingAverageCard MovingAverages="_vm.MovingAverages" />
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <ScoreCard Analysis="_vm.CurrentAnalysis" />
+            </div>
+        </div>
+
+        <AlertCooldownIndicator Vm="_vm" />
+
+        @if (_vm.LastAlert is not null)
+        {
+            <AlertPanel LastAlert="_vm.LastAlert" IsNew="_hasNewAlert" />
+        }
+
+        <div class="mb-3">
+            <MarketChart ChartPoints="_vm.ChartPoints" />
+        </div>
+
+        <RecentAlertsTable Alerts="_vm.RecentAlerts" NewAlertId="_newAlertId" />
+    }
+    else if (_vm.Status == DashboardStatus.WaitingForEnoughData)
+    {
+        var pct = _vm.MinimumRequiredCandles > 0
+            ? Math.Min(100, _vm.CandleCount * 100 / _vm.MinimumRequiredCandles)
+            : 0;
+        <div class="alert alert-warning" role="alert">
+            <strong>Aguardando dados suficientes para análise.</strong>
+            <div class="progress mt-2" style="height:20px">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning"
+                     role="progressbar"
+                     style="width:@(pct)%"
+                     aria-valuenow="@pct" aria-valuemin="0" aria-valuemax="100">
+                </div>
+            </div>
+            <small class="d-block mt-1">
+                @_vm.CandleCount de @_vm.MinimumRequiredCandles candles coletados (@(pct)%)
+            </small>
+        </div>
+    }
+    else if (_vm.Status == DashboardStatus.MarketClosed)
+    {
+        <div class="alert alert-secondary" role="alert">
+            <strong>Mercado fechado.</strong>
+            O provider não retornou candles recentes — o XAUUSD opera 24h/5 dias por semana.
+            O monitoramento continua e o dashboard será atualizado quando o mercado reabrir.
+        </div>
+    }
+    else if (_vm.Status == DashboardStatus.StaleData)
+    {
+        <div class="alert alert-warning" role="alert">
+            <strong>Dados atrasados:</strong> O último candle fechado está fora da tolerância configurada.
+        </div>
+    }
+    else if (_vm.Status == DashboardStatus.ProviderUnavailable)
+    {
+        <div class="alert alert-danger" role="alert">
+            <strong>Provider indisponível:</strong> A aplicação tentará novamente no próximo ciclo de coleta.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert">
+            <strong>Erro:</strong> Não foi possível carregar os dados do mercado.
+        </div>
+    }
+}
+
+@code {
+    private DashboardViewModel? _vm;
+    private bool _isLoading = true;
+    private bool _hasNewAlert = false;
+    private long _newAlertId = 0;
+    private long _lastPlayedAlertId = 0;
+    private CancellationTokenSource _cts = new();
+    private string _symbol = "XAUUSD";
+    private string _timeframe = "M1";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var firstSymbol = MonitorSettingsOptions.Value.Symbols.FirstOrDefault(s => s.Enabled);
+        _symbol    = firstSymbol?.Code      ?? "XAUUSD";
+        _timeframe = firstSymbol?.Timeframe ?? "M1";
+
+        await RefreshAsync();
+        AlertNotificationService.AlertReceived += OnAlertReceived;
+        _ = RunRefreshLoopAsync(_cts.Token);
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            _vm        = await DashboardService.GetDashboardAsync(_symbol, _timeframe, _cts.Token);
+            _isLoading = false;
+
+            if (_vm.LastAlert is { } alert && alert.Id != _lastPlayedAlertId)
+            {
+                _newAlertId        = alert.Id;
+                _hasNewAlert       = true;
+                _lastPlayedAlertId = alert.Id;
+
+                if (AlertSettingsOptions.Value.EnableSound)
+                    await JSRuntime.InvokeVoidAsync("marketChart.playAlert", _cts.Token, alert.Severity);
+            }
+            else
+            {
+                _hasNewAlert = false;
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception) { /* swallow; dashboard will show last known state */ }
+    }
+
+    private async Task RunRefreshLoopAsync(CancellationToken ct)
+    {
+        var interval = TimeSpan.FromSeconds(ProviderSettingsOptions.Value.PollingIntervalSeconds);
+        using var timer = new PeriodicTimer(interval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+                await InvokeAsync(RefreshAsync);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private void OnAlertReceived(MarketAlert alert)
+        => _ = InvokeAsync(RefreshAsync);
+
+    public void Dispose()
+    {
+        AlertNotificationService.AlertReceived -= OnAlertReceived;
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+
+    private string _statusLabel => _vm?.Status switch
+    {
+        DashboardStatus.Online               => "Online",
+        DashboardStatus.WaitingForEnoughData => "Aguardando dados",
+        DashboardStatus.MarketClosed         => "Mercado fechado",
+        DashboardStatus.StaleData            => "Dados atrasados",
+        DashboardStatus.ProviderUnavailable  => "Provider indisponível",
+        _                                    => _isLoading ? "Carregando..." : "Erro"
+    };
+
+    private string _statusBadgeClass => _vm?.Status switch
+    {
+        DashboardStatus.Online               => "bg-success",
+        DashboardStatus.WaitingForEnoughData => "bg-warning text-dark",
+        DashboardStatus.MarketClosed         => "bg-secondary",
+        DashboardStatus.StaleData            => "bg-warning text-dark",
+        DashboardStatus.ProviderUnavailable  => "bg-danger",
+        _                                    => "bg-secondary"
+    };
+}

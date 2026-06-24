@@ -1,0 +1,25 @@
+@if (Vm is null) { return; }
+
+@{
+    var varSign  = Vm.AbsoluteVariation >= 0 ? "+" : "";
+    var varClass = Vm.AbsoluteVariation >= 0 ? "text-success" : "text-danger";
+    var arrow    = Vm.AbsoluteVariation >= 0 ? "↑" : "↓";
+}
+
+<div class="card h-100">
+    <div class="card-body">
+        <h6 class="card-title text-muted mb-1">Preço Atual</h6>
+        <div class="fs-4 fw-bold">@Vm.CurrentPrice?.ToString("F2")</div>
+        <div class="@varClass mt-1">
+            @arrow @varSign@Vm.AbsoluteVariation?.ToString("F2")
+            (@varSign@Vm.PercentageVariation?.ToString("F3")%)
+        </div>
+        <div class="text-muted small mt-2">
+            Candle: @Vm.LastUpdatedAt?.ToString("HH:mm") UTC
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DashboardViewModel? Vm { get; set; }
+}

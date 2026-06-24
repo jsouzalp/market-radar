@@ -1,0 +1,42 @@
+@if (LastAlert is null) { return; }
+
+@{
+    var panelClass = LastAlert.Severity switch
+    {
+        "Critical" => "alert-danger",
+        "Warning"  => "alert-warning",
+        _          => "alert-info"
+    };
+    var severityLabel = LastAlert.Severity switch
+    {
+        "Critical" => "ALERTA CRÍTICO",
+        "Warning"  => "ALERTA DE ATENÇÃO",
+        _          => "ALERTA"
+    };
+    var alertTypeLabel = LastAlert.AlertType switch
+    {
+        "TrendBreakDown" => "Possível rompimento de baixa",
+        "TrendBreakUp"   => "Possível rompimento de alta",
+        _                => LastAlert.AlertType
+    };
+}
+
+<div class="alert @panelClass @(IsNew ? "border border-2" : "") mb-3" role="alert">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <strong>@severityLabel — @LastAlert.Symbol — @alertTypeLabel</strong>
+        </div>
+        <span class="badge bg-secondary">@LastAlert.TimeDisplay</span>
+    </div>
+    <hr class="my-2" />
+    <div>
+        <span class="text-muted small me-3">Score: <strong>@LastAlert.Score.ToString("F0")</strong></span>
+        <span class="text-muted small">Severidade: <strong>@LastAlert.Severity</strong></span>
+    </div>
+    <p class="mb-0 mt-2 small">@LastAlert.Message</p>
+</div>
+
+@code {
+    [Parameter] public MarketAlertViewModel? LastAlert { get; set; }
+    [Parameter] public bool IsNew { get; set; }
+}

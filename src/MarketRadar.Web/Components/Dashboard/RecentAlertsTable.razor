@@ -1,0 +1,49 @@
+@if (!Alerts.Any()) { return; }
+
+<div class="card mb-3">
+    <div class="card-header">
+        <strong>Alertas Recentes</strong>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    <th>Símbolo</th>
+                    <th>Tipo</th>
+                    <th>Severidade</th>
+                    <th>Score</th>
+                    <th>Mensagem</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var alert in Alerts)
+                {
+                    var rowClass = alert.Id == NewAlertId
+                        ? (alert.Severity == "Critical" ? "table-danger" : "table-warning")
+                        : "";
+                    var typeLabel = alert.AlertType switch
+                    {
+                        "TrendBreakDown" => "Rompimento baixa ↓",
+                        "TrendBreakUp"   => "Rompimento alta ↑",
+                        _                => alert.AlertType
+                    };
+                    <tr class="@rowClass">
+                        <td class="text-nowrap">@alert.TimeDisplay</td>
+                        <td>@alert.Symbol</td>
+                        <td>@typeLabel</td>
+                        <td>@alert.Severity</td>
+                        <td>@alert.Score.ToString("F0")</td>
+                        <td class="small text-muted">@alert.Message</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyCollection<MarketAlertViewModel> Alerts { get; set; }
+        = Array.Empty<MarketAlertViewModel>();
+    [Parameter] public long NewAlertId { get; set; }
+}

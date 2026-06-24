@@ -1,0 +1,50 @@
+@inject IJSRuntime JSRuntime
+
+<div id="mr-chart" style="width:100%; height:350px; border-radius:6px; overflow:hidden;"></div>
+
+@code {
+    [Parameter] public IReadOnlyCollection<ChartPointViewModel> ChartPoints { get; set; }
+        = Array.Empty<ChartPointViewModel>();
+
+    private bool _chartInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("marketChart.init", "mr-chart");
+            _chartInitialized = true;
+        }
+
+        if (_chartInitialized && ChartPoints.Any())
+            await JSRuntime.InvokeVoidAsync("marketChart.update", BuildChartData());
+    }
+
+    private object BuildChartData()
+    {
+        var points = ChartPoints.ToList();
+        return new
+        {
+            closePrices = points.Select(p => new { time = ToUnix(p.Time), value = p.ClosePrice }),
+            trendLine   = points
+                            .Where(p => p.TrendLinePrice.HasValue)
+                            .Select(p => new { time = ToUnix(p.Time), value = p.TrendLinePrice!.Value }),
+            ema9  = points.Where(p => p.Ema9.HasValue) .Select(p => new { time = ToUnix(p.Time), value = p.Ema9!.Value }),
+            ema21 = points.Where(p => p.Ema21.HasValue).Select(p => new { time = ToUnix(p.Time), value = p.Ema21!.Value }),
+            ema50 = points.Where(p => p.Ema50.HasValue).Select(p => new { time = ToUnix(p.Time), value = p.Ema50!.Value }),
+            markers = points
+                        .Where(p => p.HasAlert)
+                        .Select(p => new
+                        {
+                            time     = ToUnix(p.Time),
+                            position = p.AlertType?.ToString() == "TrendBreakDown" ? "aboveBar" : "belowBar",
+                            color    = "#e74c3c",
+                            shape    = "arrowDown",
+                            text     = p.AlertType?.ToString() == "TrendBreakDown" ? "↓" : "↑"
+                        })
+        };
+    }
+
+    private static long ToUnix(DateTime dt)
+        => (long)(dt.ToUniversalTime() - DateTime.UnixEpoch).TotalSeconds;
+}

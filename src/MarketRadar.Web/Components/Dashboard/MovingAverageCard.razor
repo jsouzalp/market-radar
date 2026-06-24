@@ -1,0 +1,28 @@
+<div class="card h-100">
+    <div class="card-body">
+        <h6 class="card-title text-muted mb-1">Médias Móveis</h6>
+        @foreach (var ma in MovingAverages)
+        {
+            var arrow = ma.Direction switch { "Up" => "↑", "Down" => "↓", _ => "→" };
+            var arrowClass = ma.Direction switch { "Up" => "text-success", "Down" => "text-danger", _ => "text-muted" };
+            <div class="small d-flex justify-content-between">
+                <span class="text-muted">EMA @ma.Period:</span>
+                <span>@ma.CurrentValue.ToString("F2") <span class="@arrowClass">@arrow</span></span>
+            </div>
+        }
+        @{
+            var ema21 = MovingAverages.FirstOrDefault(m => m.Period == 21);
+        }
+        @if (ema21 is not null)
+        {
+            <div class="small mt-2 @(ema21.CurrentPriceIsAbove ? "text-success" : "text-danger")">
+                Preço @(ema21.CurrentPriceIsAbove ? "acima" : "abaixo") da EMA 21
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyCollection<MovingAverageViewModel> MovingAverages { get; set; }
+        = Array.Empty<MovingAverageViewModel>();
+}

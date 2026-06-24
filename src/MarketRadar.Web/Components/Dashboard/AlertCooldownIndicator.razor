@@ -1,0 +1,13 @@
+@if (Vm is null || !Vm.IsCooldownActive) { return; }
+
+<div class="alert alert-warning py-2 px-3 mb-3 d-flex align-items-center gap-2" role="alert">
+    <span class="badge bg-warning text-dark">Cooldown</span>
+    <span class="small">
+        Alertas consecutivos: <strong>@Vm.CooldownConsecutiveCount/@Vm.CooldownMaxCount</strong>
+        — novos alertas do mesmo tipo estão temporariamente bloqueados.
+    </span>
+</div>
+
+@code {
+    [Parameter] public DashboardViewModel? Vm { get; set; }
+}

@@ -1,0 +1,29 @@
+<div class="card h-100">
+    <div class="card-body">
+        <h6 class="card-title text-muted mb-1">Tendência</h6>
+        @if (TrendLine is null)
+        {
+            <span class="text-muted">—</span>
+        }
+        else
+        {
+            <div class="fs-5 fw-bold">@TrendLine.Direction</div>
+            <div class="small mt-1">
+                <span class="text-muted">Slope:</span> @TrendLine.Slope.ToString("F4")
+            </div>
+            <div class="small">
+                <span class="text-muted">Distância:</span>
+                <span class="@(TrendLine.DistanceFromTrendLine < 0 ? "text-danger" : "text-success")">
+                    @TrendLine.DistanceFromTrendLine.ToString("F2")
+                </span>
+            </div>
+            <div class="small">
+                <span class="text-muted">Desvio:</span> @TrendLine.ResidualStandardDeviation.ToString("F2")
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public TrendLineViewModel? TrendLine { get; set; }
+}

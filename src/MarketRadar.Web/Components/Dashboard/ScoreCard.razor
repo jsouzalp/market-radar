@@ -1,0 +1,31 @@
+<div class="card h-100">
+    <div class="card-body">
+        <h6 class="card-title text-muted mb-1">Score</h6>
+        @if (Analysis is null)
+        {
+            <span class="text-muted">—</span>
+        }
+        else
+        {
+            var scoreClass = Analysis.Score switch
+            {
+                >= 85 => "text-danger fw-bold",
+                >= 70 => "text-warning fw-bold",
+                >= 50 => "text-info",
+                _     => "text-muted"
+            };
+            <div class="fs-4 @scoreClass">@Analysis.Score.ToString("F0")</div>
+            @if (Analysis.Severity is not null)
+            {
+                <div class="small mt-1">
+                    <span class="text-muted">Severidade:</span> @Analysis.Severity
+                </div>
+            }
+            <div class="small text-muted">@Analysis.Status</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public TrendBreakViewModel? Analysis { get; set; }
+}
